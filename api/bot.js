@@ -1,5 +1,5 @@
 const { Telegraf, Markup } = require("telegraf");
-const { connect } = require("./db");
+const { connect } = require("../db");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");

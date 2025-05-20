@@ -2,7 +2,7 @@ const formidable = require("formidable");
 const { Telegraf } = require("telegraf");
 const path = require("path");
 const fs = require("fs");
-const { connect } = require("./db");
+const { connect } = require("../db");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
