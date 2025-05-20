@@ -45,14 +45,30 @@ bot.on("message", async (ctx) => {
 
 // Обработчик вебхука
 module.exports = async (req, res) => {
-  if (req.method === "POST") {
-    try {
+  try {
+    if (req.method === "POST") {
+      // Проверяем, есть ли тело запроса
+      if (!req.body || Object.keys(req.body).length === 0) {
+        console.error("Empty request body");
+        return res.status(400).send("Empty request body");
+      }
+
       await bot.handleUpdate(req.body, res);
-    } catch (err) {
-      console.error("Error handling update:", err);
-      res.status(500).send("Error handling update");
+      return;
     }
-  } else {
-    res.status(200).send("Use POST");
+
+    // Для GET запросов (проверка работоспособности)
+    if (req.method === "GET") {
+      return res.status(200).json({
+        status: "ok",
+        message: "Bot is running",
+        timestamp: new Date(),
+      });
+    }
+
+    res.status(405).send("Method Not Allowed");
+  } catch (err) {
+    console.error("Error handling update:", err);
+    res.status(500).send("Error handling update");
   }
 };
