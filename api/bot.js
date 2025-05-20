@@ -60,26 +60,35 @@ module.exports = async (req, res) => {
     }
   } else {
     // Панель управления
-    res.setHeader("Content-Type", "text/html");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.end(`
-      <h2>Telegram bot is running</h2>
-      <form method="POST" action="/api/broadcast" enctype="multipart/form-data">
-        <label>Текст:</label><br/>
-        <textarea name="text" rows="4" cols="50"></textarea><br/><br/>
-        <label>Фото:</label><br/>
-        <input type="file" name="photo" /><br/><br/>
-        <button type="submit">Рекламировать</button>
-      </form>
-      <br/>
-      <form method="GET" action="/api/downloadChatIds">
-        <button type="submit">📥 Скачать chat_id</button>
-      </form>
-      <br/>
-      <form method="POST" action="/api/uploadChatIds" enctype="multipart/form-data">
-        <label>Загрузить файл с chat_id:</label>
-        <input type="file" name="file" />
-        <button type="submit">📤 Загрузить chat_id</button>
-      </form>
+      <!DOCTYPE html>
+      <html lang="ru">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Панель бота</title>
+      </head>
+      <body>
+        <h2>Telegram bot is running</h2>
+        <form method="POST" action="/api/broadcast" enctype="multipart/form-data">
+          <label>Текст:</label><br/>
+          <textarea name="text" rows="4" cols="50"></textarea><br/><br/>
+          <label>Фото:</label><br/>
+          <input type="file" name="photo" /><br/><br/>
+          <button type="submit">📢 Рекламировать</button>
+        </form>
+        <br/>
+        <form method="GET" action="/api/downloadChatIds">
+          <button type="submit">📥 Скачать chat_id</button>
+        </form>
+        <br/>
+        <form method="POST" action="/api/uploadChatIds" enctype="multipart/form-data">
+          <label>Загрузить файл с chat_id:</label>
+          <input type="file" name="file" />
+          <button type="submit">📤 Загрузить chat_id</button>
+        </form>
+      </body>
+      </html>
     `);
   }
 };
