@@ -1,12 +1,9 @@
 const { Telegraf, Markup } = require("telegraf");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const SHOP_URL = "https://your-mini-app-link.example.com";
-const INSTAGRAM_URL = "https://instagram.com/yourshop";
-const MANAGER_URL = "https://t.me/your_manager";
 
 if (!BOT_TOKEN) {
-  throw new Error("BOT_TOKEN must be предоставлен!");
+  throw new Error("BOT_TOKEN is required!");
 }
 
 const bot = new Telegraf(BOT_TOKEN);
@@ -15,26 +12,30 @@ bot.start((ctx) => {
   return ctx.reply(
     `Привет, ${
       ctx.from.first_name || "друг"
-    }! Добро пожаловать в наш интернет-магазин. Вы можете перейти в наш Mini App, чтобы посмотреть товары.`,
+    }! Добро пожаловать в наш интернет-магазин.`,
     Markup.inlineKeyboard([
-      [Markup.button.url("🛍 Перейти в магазин", SHOP_URL)],
-      [Markup.button.url("📸 Instagram", INSTAGRAM_URL)],
-      [Markup.button.url("💬 Менеджер", MANAGER_URL)],
+      [
+        Markup.button.url(
+          "🛍 Магазин",
+          "https://your-mini-app-link.example.com"
+        ),
+      ],
+      [Markup.button.url("📸 Instagram", "https://instagram.com/yourshop")],
+      [Markup.button.url("💬 Менеджер", "https://t.me/your_manager")],
     ])
   );
 });
 
-// Экспортируем функцию для Vercel
-module.exports = async function handler(req, res) {
-  try {
-    if (req.method === "POST") {
+module.exports = async (req, res) => {
+  if (req.method === "POST") {
+    try {
       await bot.handleUpdate(req.body, res);
       res.status(200).send("OK");
-    } else {
-      res.status(200).send("Telegram bot endpoint");
+    } catch (error) {
+      console.error("Bot error:", error);
+      res.status(500).send("Internal Server Error");
     }
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Ошибка сервера");
+  } else {
+    res.status(200).send("Telegram bot is running");
   }
 };
