@@ -7,16 +7,31 @@ if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");
 
 const bot = new Telegraf(BOT_TOKEN);
 const chatIdsFile = path.join(__dirname, "..", "chat_ids.json");
-let chatIds = fs.existsSync(chatIdsFile)
-  ? JSON.parse(fs.readFileSync(chatIdsFile, "utf8"))
-  : [];
+
+// 🔐 Надійне зчитування chat_ids
+let chatIds = [];
+try {
+  if (fs.existsSync(chatIdsFile)) {
+    const data = fs.readFileSync(chatIdsFile, "utf8");
+    chatIds = data ? JSON.parse(data) : [];
+  }
+} catch (error) {
+  console.error("❌ Ошибка при чтении chat_ids.json:", error.message);
+  chatIds = [];
+}
 
 bot.start((ctx) => {
   const chatId = ctx.chat.id;
   if (!chatIds.includes(chatId)) {
     chatIds.push(chatId);
-    fs.writeFileSync(chatIdsFile, JSON.stringify(chatIds));
+    try {
+      fs.writeFileSync(chatIdsFile, JSON.stringify(chatIds, null, 2));
+      console.log(`✅ Новый chat_id сохранён: ${chatId}`);
+    } catch (error) {
+      console.error("❌ Ошибка при записи chat_ids.json:", error.message);
+    }
   }
+
   return ctx.reply(
     `Привет, ${
       ctx.from.first_name || "друг"
