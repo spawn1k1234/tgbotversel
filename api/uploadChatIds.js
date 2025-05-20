@@ -1,9 +1,11 @@
-const formidableUpload = require("formidable");
+const formidable = require("formidable");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
-  const form = formidableUpload({ multiples: false });
+  const form = formidable({ multiples: false });
   form.parse(req, (err, fields, files) => {
     if (err) return res.status(500).send("Upload error");
 
@@ -18,7 +20,7 @@ module.exports = async (req, res) => {
 
       fs.writeFileSync(
         path.join(__dirname, "..", "chat_ids.json"),
-        JSON.stringify(ids)
+        JSON.stringify(ids, null, 2)
       );
       res.writeHead(302, { Location: "/api/bot" });
       res.end();

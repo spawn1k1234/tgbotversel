@@ -1,4 +1,6 @@
 const formidable = require("formidable");
+const fs = require("fs");
+const path = require("path");
 const { Telegraf: Bot } = require("telegraf");
 
 module.exports = async (req, res) => {
@@ -18,9 +20,15 @@ module.exports = async (req, res) => {
     const photoPath = files.photo?.filepath;
     const chatIdsPath = path.join(__dirname, "..", "chat_ids.json");
 
-    const chatIds = fs.existsSync(chatIdsPath)
-      ? JSON.parse(fs.readFileSync(chatIdsPath, "utf8"))
-      : [];
+    let chatIds = [];
+    try {
+      if (fs.existsSync(chatIdsPath)) {
+        const data = fs.readFileSync(chatIdsPath, "utf8");
+        chatIds = data ? JSON.parse(data) : [];
+      }
+    } catch (error) {
+      console.error("Ошибка чтения chat_ids в broadcast:", error.message);
+    }
 
     for (const id of chatIds) {
       try {

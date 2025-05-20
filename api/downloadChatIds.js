@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 module.exports = async (req, res) => {
   const filePath = path.join(__dirname, "..", "chat_ids.json");
   if (!fs.existsSync(filePath))

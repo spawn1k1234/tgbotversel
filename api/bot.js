@@ -8,12 +8,16 @@ if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");
 const bot = new Telegraf(BOT_TOKEN);
 const chatIdsFile = path.join(__dirname, "..", "chat_ids.json");
 
-// 🔐 Надійне зчитування chat_ids
+// 🔐 Надёжное чтение chat_ids с защитой от пустого/некорректного файла
 let chatIds = [];
 try {
   if (fs.existsSync(chatIdsFile)) {
     const data = fs.readFileSync(chatIdsFile, "utf8");
     chatIds = data ? JSON.parse(data) : [];
+  } else {
+    // Если файла нет - создаём пустой массив в файле
+    fs.writeFileSync(chatIdsFile, "[]", "utf8");
+    chatIds = [];
   }
 } catch (error) {
   console.error("❌ Ошибка при чтении chat_ids.json:", error.message);
