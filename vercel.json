@@ -1,36 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "pages/admin.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/pages/admin.html"
-    },
-    {
-      "src": "/admin",
-      "dest": "/pages/admin.html"
-    },
-    {
-      "src": "/api/webhook",
-      "dest": "/api/webhook.js",
-      "methods": ["POST"],
-      "headers": {
-        "Content-Type": "application/json"
-      }
-    },
-    {
-      "src": "/api/send",
-      "dest": "/api/send.js",
-      "methods": ["POST"]
-    }
-  ]
+  "builds": [{ "src": "api/bot.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/api/bot", "dest": "/api/bot.js" }]
 }
