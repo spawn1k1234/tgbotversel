@@ -263,10 +263,9 @@ bot.action("promo", async (ctx) => {
     ...Markup.inlineKeyboard([
       [Markup.button.callback("⬅️ Назад", "main_menu")],
       [
-        Markup.button.url(
-          "🛒 Перейти в магазин",
-          "https://podluxswegam-lok7.vercel.app"
-        ),
+        Markup.button.webApp("🛒 Открыть магазин", {
+          url: "https://podluxswegam-lok7.vercel.app",
+        }),
       ],
     ]),
   });
