@@ -6,41 +6,52 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
-    return res.status(405).send("Method Not Allowed");
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   const form = new formidable.IncomingForm();
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error("Form error:", err);
-      return res.status(500).send("Form error");
+      console.error("Form parsing error:", err);
+      return res.status(500).json({ error: "Form parsing failed" });
     }
 
     try {
       const db = await connectToDatabase();
       const users = await db.collection("users").find({}).toArray();
 
-      for (const user of users) {
-        try {
-          if (files.photo) {
-            await bot.telegram.sendPhoto(
-              user.id,
-              { source: files.photo.filepath },
-              { caption: fields.text }
-            );
-          } else {
-            await bot.telegram.sendMessage(user.id, fields.text);
+      const results = await Promise.allSettled(
+        users.map((user) => {
+          try {
+            if (files.photo) {
+              return bot.telegram.sendPhoto(
+                user.id,
+                { source: files.photo.filepath },
+                { caption: fields.text }
+              );
+            }
+            return bot.telegram.sendMessage(user.id, fields.text);
+          } catch (error) {
+            console.error(`Error sending to ${user.id}:`, error.message);
+            return null;
           }
-        } catch (error) {
-          console.error(`Error sending to ${user.id}:`, error.message);
-        }
-      }
+        })
+      );
 
-      res.status(200).send("Рассылка отправлена!");
+      const successful = results.filter((r) => r.status === "fulfilled").length;
+
+      return res.status(200).json({
+        message: `Рассылка завершена. Успешно: ${successful}, Ошибок: ${
+          users.length - successful
+        }`,
+      });
     } catch (error) {
-      console.error("Broadcast error:", error);
-      res.status(500).send("Ошибка рассылки");
+      console.error("Broadcast failed:", error);
+      return res.status(500).json({
+        error: "Broadcast failed",
+        details: error.message,
+      });
     }
   });
 };

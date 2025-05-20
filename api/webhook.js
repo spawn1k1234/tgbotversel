@@ -1,28 +1,27 @@
 const { Telegraf } = require("telegraf");
-const { saveUser } = require("../lib/db");
+const { connectToDatabase } = require("../lib/db");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Включаем логирование
-bot.use((ctx, next) => {
-  console.log("Update:", JSON.stringify(ctx.update, null, 2));
-  return next();
-});
-
-// Обработка команд
+// Обработчики команд
 bot.start(async (ctx) => {
   try {
-    const user = {
-      id: ctx.from.id,
-      username: ctx.from.username,
-      first_name: ctx.from.first_name,
-      last_name: ctx.from.last_name,
-      date: new Date(),
-    };
+    const db = await connectToDatabase();
+    await db.collection("users").updateOne(
+      { id: ctx.from.id },
+      {
+        $set: {
+          id: ctx.from.id,
+          username: ctx.from.username,
+          first_name: ctx.from.first_name,
+          last_name: ctx.from.last_name,
+          date: new Date(),
+        },
+      },
+      { upsert: true }
+    );
 
-    await saveUser(user);
-
-    await ctx.reply(`Привет, ${ctx.from.first_name}! 👋`, {
+    return ctx.reply(`Привет, ${ctx.from.first_name}! 👋`, {
       reply_markup: {
         inline_keyboard: [
           [
@@ -37,32 +36,25 @@ bot.start(async (ctx) => {
   }
 });
 
-// Обработчик для Vercel
 module.exports = async (req, res) => {
   try {
-    console.log("Headers:", req.headers);
-    console.log("Raw body:", req.body);
-
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Only POST allowed" });
+      return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    // Для Vercel нужно парсить тело запроса
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    // Обработка обновления без дублирования ответа
+    await bot.handleUpdate(req.body, res);
 
-    if (!body || Object.keys(body).length === 0) {
-      return res.status(400).json({ error: "Empty request body" });
-    }
-
-    // Обрабатываем обновление
-    await bot.handleUpdate(body);
-
-    return res.status(200).json({ status: "ok" });
+    // Не отправляем ответ здесь, так как Telegraf уже это делает
   } catch (err) {
     console.error("Webhook error:", err);
-    return res.status(500).json({
-      error: "Server error",
-      details: err.message,
-    });
+
+    // Проверяем, не были ли уже отправлены заголовки
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: "Internal Server Error",
+        details: err.message,
+      });
+    }
   }
 };
