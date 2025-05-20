@@ -1,52 +1,90 @@
-const formidable = require("formidable");
-const path = require("path");
-const fs = require("fs");
-const { Telegraf } = require("telegraf");
 const connectToDatabase = require("./db");
 const ChatId = require("./ChatId");
+const { Telegraf } = require("telegraf");
+const formidable = require("formidable");
+const fs = require("fs");
+const path = require("path");
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");
+
+const bot = new Telegraf(BOT_TOKEN);
 
 module.exports = async (req, res) => {
-  if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
+  }
 
-  const form = formidable({
-    multiples: false,
-    uploadDir: path.join(__dirname, "..", "uploads"),
-    keepExtensions: true,
-  });
-
+  // Разбор формы с файлом
+  const form = new formidable.IncomingForm();
   form.parse(req, async (err, fields, files) => {
-    if (err) return res.status(500).send("Form parsing error");
+    if (err) {
+      console.error("Ошибка при разборе формы:", err);
+      res.status(500).send("Ошибка сервера");
+      return;
+    }
 
-    const text = fields.text || "";
-    const photoPath = files.photo?.filepath;
-    const bot = new Telegraf(process.env.BOT_TOKEN);
+    const text = fields.text;
+    if (!text) {
+      res.status(400).send("Текст сообщения обязателен");
+      return;
+    }
+
+    let photoBuffer = null;
+    let photoType = null;
+
+    if (files.photo && files.photo.size > 0) {
+      try {
+        photoBuffer = fs.readFileSync(files.photo.path);
+        photoType = files.photo.type;
+      } catch (readErr) {
+        console.error("Ошибка чтения файла фото:", readErr);
+        res.status(500).send("Ошибка сервера");
+        return;
+      }
+    }
 
     try {
       await connectToDatabase();
-      const chatIdsDocs = await ChatId.find({});
-      const chatIds = chatIdsDocs.map((doc) => doc.chat_id);
 
-      for (const id of chatIds) {
+      const chatIds = await ChatId.find({}, { chat_id: 1, _id: 0 });
+      if (chatIds.length === 0) {
+        res.status(200).send("Нет chat_id для рассылки");
+        return;
+      }
+
+      // Рассылка
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const doc of chatIds) {
         try {
-          if (photoPath) {
+          if (photoBuffer) {
+            // Если есть фото — сначала отправляем фото с подписью
             await bot.telegram.sendPhoto(
-              id,
-              { source: photoPath },
+              doc.chat_id,
+              { source: photoBuffer },
               { caption: text }
             );
           } else {
-            await bot.telegram.sendMessage(id, text);
+            await bot.telegram.sendMessage(doc.chat_id, text);
           }
-        } catch (e) {
-          console.error(`Ошибка отправки пользователю ${id}:`, e.message);
+          successCount++;
+        } catch (error) {
+          console.error(`Ошибка при отправке chat_id=${doc.chat_id}:`, error);
+          failCount++;
         }
       }
-    } catch (error) {
-      console.error("Ошибка рассылки:", error);
-      return res.status(500).send("Ошибка рассылки");
-    }
 
-    res.writeHead(302, { Location: "/api/bot" });
-    res.end();
+      res
+        .status(200)
+        .send(
+          `Рассылка завершена. Успешно: ${successCount}, Ошибок: ${failCount}`
+        );
+    } catch (error) {
+      console.error("Ошибка при рассылке:", error);
+      res.status(500).send("Ошибка сервера");
+    }
   });
 };
