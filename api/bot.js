@@ -13,7 +13,6 @@ bot.start(async (ctx) => {
   try {
     await connectToDatabase();
 
-    // Сохраняем chat_id, если его нет
     await ChatId.updateOne(
       { chat_id: chatId },
       { chat_id: chatId },
@@ -45,10 +44,11 @@ bot.start(async (ctx) => {
 
 module.exports = async (req, res) => {
   if (req.method === "POST") {
+    // Проверяем, что тело не пустое
     if (!req.body || Object.keys(req.body).length === 0) {
-      res.status(400).send("Empty request body");
-      return;
+      return res.status(400).send("Empty request body");
     }
+
     try {
       await bot.handleUpdate(req.body, res);
       res.status(200).send("OK");
@@ -57,7 +57,6 @@ module.exports = async (req, res) => {
       res.status(500).send("Internal Server Error");
     }
   } else {
-    // Панель управления (HTML)
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.end(`
       <!DOCTYPE html>
