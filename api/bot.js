@@ -45,6 +45,10 @@ bot.start(async (ctx) => {
 
 module.exports = async (req, res) => {
   if (req.method === "POST") {
+    if (!req.body || Object.keys(req.body).length === 0) {
+      res.status(400).send("Empty request body");
+      return;
+    }
     try {
       await bot.handleUpdate(req.body, res);
       res.status(200).send("OK");
