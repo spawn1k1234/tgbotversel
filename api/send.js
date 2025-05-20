@@ -1,53 +1,46 @@
-const { Telegraf } = require("telegraf");
 const formidable = require("formidable");
-const { getAllUsers } = require("../lib/db");
+const { connectToDatabase } = require("../lib/db");
+const { Telegraf } = require("telegraf");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
-    res.status(405).send("Method Not Allowed");
-    return;
+    return res.status(405).send("Method Not Allowed");
   }
 
   const form = new formidable.IncomingForm();
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error("Error parsing form:", err);
-      res.status(500).send("Error parsing form");
-      return;
+      console.error("Form error:", err);
+      return res.status(500).send("Form error");
     }
 
-    const { text } = fields;
-    const photo = files.photo;
-
     try {
-      const users = await getAllUsers();
+      const db = await connectToDatabase();
+      const users = await db.collection("users").find({}).toArray();
 
       for (const user of users) {
         try {
-          if (photo) {
+          if (files.photo) {
             await bot.telegram.sendPhoto(
               user.id,
-              { source: photo.filepath },
-              { caption: text }
+              { source: files.photo.filepath },
+              { caption: fields.text }
             );
           } else {
-            await bot.telegram.sendMessage(user.id, text);
+            await bot.telegram.sendMessage(user.id, fields.text);
           }
         } catch (error) {
-          console.error(
-            `Error sending message to user ${user.id}:`,
-            error.message
-          );
+          console.error(`Error sending to ${user.id}:`, error.message);
         }
       }
 
-      res.status(200).send("Рассылка успешно отправлена!");
+      res.status(200).send("Рассылка отправлена!");
     } catch (error) {
-      console.error("Error during broadcast:", error);
-      res.status(500).send("Ошибка при рассылке");
+      console.error("Broadcast error:", error);
+      res.status(500).send("Ошибка рассылки");
     }
   });
 };
