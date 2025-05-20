@@ -1,22 +1,21 @@
-const { MongoClient } = require("mongodb");
+const mongoose = require("mongoose");
 
-const uri = process.env.MONGODB_URI; // Например: mongodb+srv://user:pass@cluster.mongodb.net/dbname
-if (!uri) throw new Error("MONGODB_URI must be provided in env");
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) throw new Error("MONGODB_URI is not defined");
 
-let client;
-let db;
+let cached = global.mongoose;
+if (!cached) cached = global.mongoose = { conn: null, promise: null };
 
-async function connect() {
-  if (db) return db;
-  client = new MongoClient(uri);
-  await client.connect();
-  db = client.db("telegram_bot"); // имя базы
-  return db;
+async function connectToDatabase() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI).then((mongoose) => {
+      return mongoose;
+    });
+  }
+  cached.conn = await cached.promise;
+  return cached.conn;
 }
 
-async function getChatIdsCollection() {
-  const database = await connect();
-  return database.collection("chat_ids");
-}
-
-module.exports = { getChatIdsCollection };
+module.exports = connectToDatabase;
