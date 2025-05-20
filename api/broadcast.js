@@ -1,8 +1,8 @@
 const formidable = require("formidable");
-const { Telegraf } = require("telegraf");
 const path = require("path");
 const fs = require("fs");
-const { connect } = require("../db");
+const { Telegraf } = require("telegraf");
+const { getChatIdsCollection } = require("./db");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
@@ -21,32 +21,33 @@ module.exports = async (req, res) => {
     const photoPath = files.photo?.filepath;
 
     try {
-      const db = await connect();
-      const chatIdsCollection = db.collection("chat_ids");
-      const chatIdsDocs = await chatIdsCollection.find({}).toArray();
-      const chatIds = chatIdsDocs.map((doc) => doc.chatId);
+      const chatIdsColl = await getChatIdsCollection();
+      const allChatIds = await chatIdsColl.find({}).toArray();
 
-      for (const id of chatIds) {
+      for (const doc of allChatIds) {
         try {
           if (photoPath) {
             await bot.telegram.sendPhoto(
-              id,
+              doc.chatId,
               { source: photoPath },
               { caption: text }
             );
           } else {
-            await bot.telegram.sendMessage(id, text);
+            await bot.telegram.sendMessage(doc.chatId, text);
           }
         } catch (e) {
-          console.error(`Ошибка при отправке сообщению ${id}:`, e.message);
+          console.error(
+            `Ошибка отправки сообщения для ${doc.chatId}:`,
+            e.message
+          );
         }
       }
-
-      res.writeHead(302, { Location: "/api/bot" });
-      res.end();
-    } catch (e) {
-      console.error("Ошибка при рассылке:", e);
-      res.status(500).send("Ошибка при рассылке");
+    } catch (error) {
+      console.error("Ошибка при получении chat_id из БД:", error);
+      return res.status(500).send("Ошибка при рассылке");
     }
+
+    res.writeHead(302, { Location: "/api/bot" });
+    res.end();
   });
 };

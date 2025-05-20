@@ -1,13 +1,17 @@
-const fs = require("fs");
-const path = require("path");
+const { getChatIdsCollection } = require("./db");
 
 module.exports = async (req, res) => {
-  const filePath = path.join(__dirname, "..", "chat_ids.json");
-  if (!fs.existsSync(filePath))
-    return res.status(404).send("No chat_ids found");
+  try {
+    const chatIdsColl = await getChatIdsCollection();
+    const allChatIds = await chatIdsColl.find({}).toArray();
 
-  const content = fs.readFileSync(filePath);
-  res.setHeader("Content-Disposition", "attachment; filename=chat_ids.json");
-  res.setHeader("Content-Type", "application/json");
-  res.status(200).send(content);
+    const ids = allChatIds.map((doc) => doc.chatId);
+
+    res.setHeader("Content-Disposition", "attachment; filename=chat_ids.json");
+    res.setHeader("Content-Type", "application/json");
+    res.status(200).send(JSON.stringify(ids, null, 2));
+  } catch (error) {
+    console.error("Ошибка при скачивании chat_id:", error);
+    res.status(500).send("Ошибка сервера");
+  }
 };

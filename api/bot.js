@@ -1,43 +1,39 @@
 const { Telegraf, Markup } = require("telegraf");
-const { connect } = require("../db");
+const { getChatIdsCollection } = require("./db");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");
+if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required");
 
 const bot = new Telegraf(BOT_TOKEN);
 
 bot.start(async (ctx) => {
+  const chatId = ctx.chat.id;
   try {
-    const db = await connect();
-    const chatIdsCollection = db.collection("chat_ids");
-
-    const chatId = ctx.chat.id;
-
-    const exists = await chatIdsCollection.findOne({ chatId });
+    const chatIdsColl = await getChatIdsCollection();
+    const exists = await chatIdsColl.findOne({ chatId });
     if (!exists) {
-      await chatIdsCollection.insertOne({ chatId });
-      console.log(`✅ Новый chat_id сохранён в базе: ${chatId}`);
+      await chatIdsColl.insertOne({ chatId });
+      console.log(`✅ Новый chat_id сохранён: ${chatId}`);
     }
-
-    return ctx.reply(
-      `Привет, ${
-        ctx.from.first_name || "друг"
-      }! Добро пожаловать в наш интернет-магазин.`,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "🛍 Магазин",
-            "https://your-mini-app-link.example.com"
-          ),
-        ],
-        [Markup.button.url("📸 Instagram", "https://instagram.com/yourshop")],
-        [Markup.button.url("💬 Менеджер", "https://t.me/your_manager")],
-      ])
-    );
   } catch (error) {
-    console.error("Ошибка в start handler:", error);
-    return ctx.reply("Произошла ошибка, попробуйте позже.");
+    console.error("Ошибка при сохранении chat_id в БД:", error);
   }
+
+  return ctx.reply(
+    `Привет, ${
+      ctx.from.first_name || "друг"
+    }! Добро пожаловать в наш интернет-магазин.`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.url(
+          "🛍 Магазин",
+          "https://your-mini-app-link.example.com"
+        ),
+      ],
+      [Markup.button.url("📸 Instagram", "https://instagram.com/yourshop")],
+      [Markup.button.url("💬 Менеджер", "https://t.me/your_manager")],
+    ])
+  );
 });
 
 module.exports = async (req, res) => {
@@ -47,15 +43,18 @@ module.exports = async (req, res) => {
       res.status(200).send("OK");
     } catch (error) {
       console.error("Bot error:", error);
-      res.status(500).send("Internal Server Error");
+      res.status(500).send("Произошла ошибка, попробуйте позже.");
     }
   } else {
-    // Панель управления, оставляем как есть
+    // Отдаём панель управления
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.end(`
       <!DOCTYPE html>
       <html lang="ru">
-      <head><meta charset="UTF-8" /><title>Панель бота</title></head>
+      <head>
+        <meta charset="UTF-8" />
+        <title>Панель бота</title>
+      </head>
       <body>
         <h2>Telegram bot is running</h2>
         <form method="POST" action="/api/broadcast" enctype="multipart/form-data">
