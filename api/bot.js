@@ -1,6 +1,7 @@
 const { Telegraf, Markup } = require("telegraf");
 const connectToDatabase = require("./db");
 const ChatId = require("./ChatId");
+const { json } = require("micro"); // импорт парсера
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");
@@ -37,17 +38,45 @@ bot.start(async (ctx) => {
 
 module.exports = async (req, res) => {
   if (req.method === "POST") {
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).send("Empty request body");
-    }
     try {
-      await bot.handleUpdate(req.body, res);
+      const body = await json(req); // Парсим тело запроса в объект JSON
+      if (!body || Object.keys(body).length === 0) {
+        return res.status(400).send("Empty request body");
+      }
+      await bot.handleUpdate(body, res);
       res.status(200).send("OK");
     } catch (error) {
       console.error("Bot error:", error);
       res.status(500).send("Internal Server Error");
     }
   } else {
-    res.status(405).send("Method Not Allowed");
+    // При GET-запросе отдаём простую HTML панель управления (по желанию)
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.end(`
+      <!DOCTYPE html>
+      <html lang="ru">
+      <head><meta charset="UTF-8" /><title>Панель бота</title></head>
+      <body>
+        <h2>Telegram bot is running</h2>
+        <form method="POST" action="/api/broadcast" enctype="multipart/form-data">
+          <label>Текст:</label><br/>
+          <textarea name="text" rows="4" cols="50"></textarea><br/><br/>
+          <label>Фото:</label><br/>
+          <input type="file" name="photo" /><br/><br/>
+          <button type="submit">📢 Рекламировать</button>
+        </form>
+        <br/>
+        <form method="GET" action="/api/downloadChatIds">
+          <button type="submit">📥 Скачать chat_id</button>
+        </form>
+        <br/>
+        <form method="POST" action="/api/uploadChatIds" enctype="multipart/form-data">
+          <label>Загрузить файл с chat_id:</label>
+          <input type="file" name="file" />
+          <button type="submit">📤 Загрузить chat_id</button>
+        </form>
+      </body>
+      </html>
+    `);
   }
 };
