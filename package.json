@@ -1,12 +1,12 @@
 {
-  "name": "telegram-bot-vercel",
+  "name": "telegram-shop-bot",
   "version": "1.0.0",
   "main": "index.js",
-  "license": "MIT",
-  "dependencies": {
-    "node-telegram-bot-api": "^0.61.0"
-  },
   "scripts": {
-    "start": "node lib/bot.js"
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.12.2",
+    "express": "^4.18.2"
   }
 }
