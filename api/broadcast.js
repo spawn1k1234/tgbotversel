@@ -1,12 +1,13 @@
 const formidable = require("formidable");
-const fs = require("fs");
+const { Telegraf } = require("telegraf");
 const path = require("path");
-const { Telegraf: Bot } = require("telegraf");
+const fs = require("fs");
+const { connect } = require("./db");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
 
-  const bot = new Bot(process.env.BOT_TOKEN);
+  const bot = new Telegraf(process.env.BOT_TOKEN);
   const form = formidable({
     multiples: false,
     uploadDir: path.join(__dirname, "..", "uploads"),
@@ -18,31 +19,34 @@ module.exports = async (req, res) => {
 
     const text = fields.text || "";
     const photoPath = files.photo?.filepath;
-    const chatIdsPath = path.join(__dirname, "..", "chat_ids.json");
 
-    let chatIds = [];
     try {
-      if (fs.existsSync(chatIdsPath)) {
-        const data = fs.readFileSync(chatIdsPath, "utf8");
-        chatIds = data ? JSON.parse(data) : [];
-      }
-    } catch (error) {
-      console.error("Ошибка чтения chat_ids в broadcast:", error.message);
-    }
+      const db = await connect();
+      const chatIdsCollection = db.collection("chat_ids");
+      const chatIdsDocs = await chatIdsCollection.find({}).toArray();
+      const chatIds = chatIdsDocs.map((doc) => doc.chatId);
 
-    for (const id of chatIds) {
-      try {
-        if (photoPath) {
-          await bot.sendPhoto(id, { source: photoPath }, { caption: text });
-        } else {
-          await bot.sendMessage(id, text);
+      for (const id of chatIds) {
+        try {
+          if (photoPath) {
+            await bot.telegram.sendPhoto(
+              id,
+              { source: photoPath },
+              { caption: text }
+            );
+          } else {
+            await bot.telegram.sendMessage(id, text);
+          }
+        } catch (e) {
+          console.error(`Ошибка при отправке сообщению ${id}:`, e.message);
         }
-      } catch (e) {
-        console.error(`Error sending to ${id}:`, e.message);
       }
-    }
 
-    res.writeHead(302, { Location: "/api/bot" });
-    res.end();
+      res.writeHead(302, { Location: "/api/bot" });
+      res.end();
+    } catch (e) {
+      console.error("Ошибка при рассылке:", e);
+      res.status(500).send("Ошибка при рассылке");
+    }
   });
 };

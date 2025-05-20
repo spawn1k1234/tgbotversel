@@ -1,56 +1,43 @@
 const { Telegraf, Markup } = require("telegraf");
-const fs = require("fs");
-const path = require("path");
+const { connect } = require("./db");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) throw new Error("BOT_TOKEN is required!");
 
 const bot = new Telegraf(BOT_TOKEN);
-const chatIdsFile = path.join(__dirname, "..", "chat_ids.json");
 
-// 🔐 Надёжное чтение chat_ids с защитой от пустого/некорректного файла
-let chatIds = [];
-try {
-  if (fs.existsSync(chatIdsFile)) {
-    const data = fs.readFileSync(chatIdsFile, "utf8");
-    chatIds = data ? JSON.parse(data) : [];
-  } else {
-    // Если файла нет - создаём пустой массив в файле
-    fs.writeFileSync(chatIdsFile, "[]", "utf8");
-    chatIds = [];
-  }
-} catch (error) {
-  console.error("❌ Ошибка при чтении chat_ids.json:", error.message);
-  chatIds = [];
-}
+bot.start(async (ctx) => {
+  try {
+    const db = await connect();
+    const chatIdsCollection = db.collection("chat_ids");
 
-bot.start((ctx) => {
-  const chatId = ctx.chat.id;
-  if (!chatIds.includes(chatId)) {
-    chatIds.push(chatId);
-    try {
-      fs.writeFileSync(chatIdsFile, JSON.stringify(chatIds, null, 2));
-      console.log(`✅ Новый chat_id сохранён: ${chatId}`);
-    } catch (error) {
-      console.error("❌ Ошибка при записи chat_ids.json:", error.message);
+    const chatId = ctx.chat.id;
+
+    const exists = await chatIdsCollection.findOne({ chatId });
+    if (!exists) {
+      await chatIdsCollection.insertOne({ chatId });
+      console.log(`✅ Новый chat_id сохранён в базе: ${chatId}`);
     }
-  }
 
-  return ctx.reply(
-    `Привет, ${
-      ctx.from.first_name || "друг"
-    }! Добро пожаловать в наш интернет-магазин.`,
-    Markup.inlineKeyboard([
-      [
-        Markup.button.url(
-          "🛍 Магазин",
-          "https://your-mini-app-link.example.com"
-        ),
-      ],
-      [Markup.button.url("📸 Instagram", "https://instagram.com/yourshop")],
-      [Markup.button.url("💬 Менеджер", "https://t.me/your_manager")],
-    ])
-  );
+    return ctx.reply(
+      `Привет, ${
+        ctx.from.first_name || "друг"
+      }! Добро пожаловать в наш интернет-магазин.`,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.url(
+            "🛍 Магазин",
+            "https://your-mini-app-link.example.com"
+          ),
+        ],
+        [Markup.button.url("📸 Instagram", "https://instagram.com/yourshop")],
+        [Markup.button.url("💬 Менеджер", "https://t.me/your_manager")],
+      ])
+    );
+  } catch (error) {
+    console.error("Ошибка в start handler:", error);
+    return ctx.reply("Произошла ошибка, попробуйте позже.");
+  }
 });
 
 module.exports = async (req, res) => {
@@ -63,15 +50,12 @@ module.exports = async (req, res) => {
       res.status(500).send("Internal Server Error");
     }
   } else {
-    // Панель управления
+    // Панель управления, оставляем как есть
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.end(`
       <!DOCTYPE html>
       <html lang="ru">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Панель бота</title>
-      </head>
+      <head><meta charset="UTF-8" /><title>Панель бота</title></head>
       <body>
         <h2>Telegram bot is running</h2>
         <form method="POST" action="/api/broadcast" enctype="multipart/form-data">
